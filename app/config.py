@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 API_KEY = os.getenv("API_KEY", "change-this-secret-key-in-env")
-JOW_BEARER_TOKEN = os.getenv("JOW_BEARER_TOKEN", "")
+JOW_EMAIL = os.getenv("JOW_EMAIL", "")
+JOW_PASSWORD = os.getenv("JOW_PASSWORD", "")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 KEYWORDS_FILE = BASE_DIR / "data" / "meat_keywords.json"

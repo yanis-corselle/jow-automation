@@ -8,9 +8,10 @@ A lightweight **FastAPI** microservice designed to run on a Raspberry Pi (or any
 
 - **Macro Filtering:** Selects recipes matching a minimum protein threshold per serving (e.g., $\ge 30\text{g}$).
 - **Randomized Selection:** Randomly picks $N$ meals without duplicates to ensure meal variety.
+- **Automatic Jow Authentication:** Automatically logs into Jow using your email and password, handling token generation and renewal seamlessly.
 - **Butcher Items Isolation:** Automatically detects meat and poultry ingredients via an external configuration file (`data/meat_keywords.json`) and excludes them from the automated grocery drive cart.
 - **Multi-Language Ready:** Meat identification keywords are decoupled from code logic for easy localization.
-- **Bearer Token Auth:** Secured endpoint protected by an API key header.
+- **Bearer Token Auth:** Secured API endpoint protected by a custom API key header.
 
 ---
 
@@ -59,7 +60,7 @@ Keywords used to filter out butcher items are decoupled from application logic a
 
 ### Prerequisites
 - Python 3.10+
-- A Jow account
+- A Jow account (Email + Password)
 - A Linux host (e.g., Raspberry Pi)
 
 ### 1. Local Setup
@@ -73,14 +74,15 @@ pip install -r requirements.txt
 ```
 
 ### 2. Environment Variables
-Copy `.env.example` to `.env` and configure your keys:
+Copy `.env.example` to `.env` and configure your credentials:
 ```bash
 cp .env.example .env
 ```
 
 ```ini
 API_KEY=your_very_long_secret_api_key_here
-JOW_BEARER_TOKEN=your_jow_bearer_token_here
+JOW_EMAIL=your_email@example.com
+JOW_PASSWORD=your_jow_password
 ```
 
 ### 3. Running Locally

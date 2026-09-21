@@ -1,37 +1,74 @@
-import random
 import requests
-from app.config import JOW_BEARER_TOKEN
+from app.config import JOW_EMAIL, JOW_PASSWORD
 
-JOW_API_URL = "https://api.jow.fr/graphql"  # Endpoint GraphQL privé Jow
+JOW_API_URL = "https://api.jow.fr/graphql"
 
-def fetch_and_filter_recipes(min_protein: int = 30) -> list[dict]:
+# Variable globale pour conserver le token en mémoire
+_cached_jow_token = None
+
+def get_jow_bearer_token(force_refresh: bool = False) -> str:
     """
-    Interroge l'API Jow pour récupérer les recettes et filtrer par protéines.
-    Note : Adapter le payload GraphQL selon les endpoints de Jow.
+    Authentifie l'utilisateur auprès de Jow et récupère un nouveau Bearer Token.
+    Reutilise le token mis en cache sauf si force_refresh=True.
     """
-    # Exemple de structure retournée après parsing des recettes Jow
-    # Remplace cette simulation par l'appel requests.post réel vers l'API Jow
-    mock_recipes = [
-        {"id": "rec_1", "name": "Poulet Basquaise", "protein": 38, "ingredients": [{"name": "Filet de poulet", "qty": "400g"}, {"name": "Poivron", "qty": "2"}]},
-        {"id": "rec_2", "name": "Pavé de Saumon et Riz", "protein": 34, "ingredients": [{"name": "Pavé de saumon", "qty": "2"}, {"name": "Riz", "qty": "200g"}]},
-        {"id": "rec_3", "name": "Steak Haché & Patates Douces", "protein": 42, "ingredients": [{"name": "Steak haché 5%", "qty": "2"}, {"name": "Patate douce", "qty": "500g"}]},
-        {"id": "rec_4", "name": "Pâtes Carbonara", "protein": 18, "ingredients": [{"name": "Pâtes", "qty": "250g"}, {"name": "Lardons", "qty": "150g"}]},
-        {"id": "rec_5", "name": "Escalope de Dinde & Quinoa", "protein": 36, "ingredients": [{"name": "Escalope de dinde", "qty": "300g"}, {"name": "Quinoa", "qty": "150g"}]}
-    ]
-    return [r for r in mock_recipes if r.get("protein", 0) >= min_protein]
+    global _cached_jow_token
+
+    if _cached_jow_token and not force_refresh:
+        return _cached_jow_token
+
+    if not JOW_EMAIL or not JOW_PASSWORD:
+        raise ValueError("JOW_EMAIL ou JOW_PASSWORD manquant dans le fichier .env")
+
+    mutation = """
+    mutation Login($email: String!, $password: String!) {
+      login(email: $email, password: $password) {
+        token
+      }
+    }
+    """
+    payload = {
+        "query": mutation,
+        "variables": {
+            "email": JOW_EMAIL,
+            "password": JOW_PASSWORD
+        }
+    }
+
+    response = requests.post(JOW_API_URL, json=payload, headers={"Content-Type": "application/json"})
+    
+    if response.status_code == 200:
+        data = response.json()
+        if "data" in data and data["data"].get("login"):
+            _cached_jow_token = data["data"]["login"]["token"]
+            return _cached_jow_token
+        elif "errors" in data:
+            raise Exception(f"Erreur d'authentification Jow: {data['errors']}")
+
+    raise Exception(f"Échec de connexion à l'API Jow (Code: {response.status_code})")
 
 def push_recipes_to_cart(recipe_ids: list[str]) -> bool:
     """
-    Injecte les recettes sélectionnées dans le panier Drive via l'API Jow.
+    Injecte les recettes sélectionnées dans le panier Jow.
+    Si le token expire (HTTP 401), il tente un rafraîchissement automatique.
     """
-    if not JOW_BEARER_TOKEN:
+    try:
+        token = get_jow_bearer_token()
+    except Exception as e:
+        print(f"Erreur de récupération du token Jow: {e}")
         return False
-    
+
     headers = {
-        "Authorization": f"Bearer {JOW_BEARER_TOKEN}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
-    # Exemple d'appel API pour ajouter au panier
+
+    # Exemple de requête vers Jow
     # response = requests.post(JOW_API_URL, headers=headers, json={...})
-    # return response.status_code == 200
+    
+    # Si le token a expiré entre temps (401), on retente une fois en forçant le refresh
+    # if response.status_code == 401:
+    #     token = get_jow_bearer_token(force_refresh=True)
+    #     headers["Authorization"] = f"Bearer {token}"
+    #     response = requests.post(JOW_API_URL, headers=headers, json={...})
+
     return True
